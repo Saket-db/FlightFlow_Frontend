@@ -1,0 +1,125 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Airport Scheduling Copilot Design System */
+
+@layer base {
+  :root {
+    /* Aviation-focused color palette */
+    --background: 220 20% 97%;
+    --foreground: 220 15% 12%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 12%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 12%;
+    
+    /* Primary: Aviation Blue */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 217 91% 55%;
+    
+    /* Secondary: Success Green */
+    --secondary: 158 64% 52%;
+    --secondary-foreground: 0 0% 100%;
+    
+    /* Aviation status colors */
+    --success: 158 64% 52%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 43 96% 56%;
+    --warning-foreground: 0 0% 0%;
+    
+    --danger: 0 72% 51%;
+    --danger-foreground: 0 0% 100%;
+    
+    /* Neutral tones */
+    --muted: 220 13% 91%;
+    --muted-foreground: 220 9% 46%;
+    
+    --accent: 220 13% 91%;
+    --accent-foreground: 220 15% 12%;
+    
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 60%;
+    
+    --radius: 0.75rem;
+    
+    /* Sidebar */
+    --sidebar-background: 220 20% 97%;
+    --sidebar-foreground: 220 15% 12%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 13% 91%;
+    --sidebar-accent-foreground: 220 15% 12%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217 91% 60%;
+  }
+
+  .dark {
+    --background: 220 15% 8%;
+    --foreground: 220 20% 95%;
+    
+    --card: 220 15% 10%;
+    --card-foreground: 220 20% 95%;
+    
+    --popover: 220 15% 10%;
+    --popover-foreground: 220 20% 95%;
+    
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 217 91% 65%;
+    
+    --secondary: 158 64% 52%;
+    --secondary-foreground: 0 0% 100%;
+    
+    --success: 158 64% 52%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 43 96% 56%;
+    --warning-foreground: 0 0% 0%;
+    
+    --danger: 0 72% 51%;
+    --danger-foreground: 0 0% 100%;
+    
+    --muted: 220 15% 15%;
+    --muted-foreground: 220 9% 65%;
+    
+    --accent: 220 15% 15%;
+    --accent-foreground: 220 20% 95%;
+    
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 220 15% 15%;
+    --input: 220 15% 15%;
+    --ring: 217 91% 60%;
+    
+    --sidebar-background: 220 15% 8%;
+    --sidebar-foreground: 220 20% 95%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 15%;
+    --sidebar-accent-foreground: 220 20% 95%;
+    --sidebar-border: 220 15% 15%;
+    --sidebar-ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
