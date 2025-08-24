@@ -17,6 +17,8 @@ export interface DatasetMeta {
   };
   airports: string[];
   airlines: string[];
+  from_top?: Record<string, number>;
+  to_top?: Record<string, number>;
 }
 
 export interface SlotStats {
@@ -24,6 +26,7 @@ export interface SlotStats {
   utilized_slots: number;
   utilization_rate: number;
   avg_queueing_burden: number;
+  detailed_slots?: any[];
 }
 
 export interface GreenWindow {
@@ -162,6 +165,23 @@ class ApiService {
 
   async getCascadeRisk(): Promise<ApiResponse<CascadeRisk>> {
     return this.fetchWithErrorHandling<CascadeRisk>('/analysis/cascade');
+  }
+
+  // Cascade Risk Analysis
+  async getCascadeAnalysis(): Promise<ApiResponse<CascadeRisk>> {
+    return this.fetchWithErrorHandling<CascadeRisk>('/analysis/cascade');
+  }
+
+  // Runway Configuration
+  async getRunwayConfig(): Promise<ApiResponse<any>> {
+    return this.fetchWithErrorHandling<any>('/config/runway');
+  }
+
+  async updateRunwayConfig(config: any): Promise<ApiResponse<any>> {
+    return this.fetchWithErrorHandling<any>('/config/runway', {
+      method: 'POST',
+      body: JSON.stringify(config)
+    });
   }
 
   // Prediction Operations

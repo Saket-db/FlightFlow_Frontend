@@ -5,7 +5,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { AirplaneLoader } from "@/components/common/AirplaneLoader";
 
 // Lazy load pages for better performance
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -20,7 +19,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const queryClient = new QueryClient();
 
 const PageSuspense = ({ children }: { children: React.ReactNode }) => (
-  <Suspense fallback={<AirplaneLoader message="Loading page..." size="lg" />}>
+  <Suspense fallback={<div className="flex items-center justify-center p-8 text-black">Loading page...</div>}>
     {children}
   </Suspense>
 );

@@ -11,7 +11,6 @@ interface KPICardProps {
   icon?: ReactNode;
   trend?: "up" | "down" | "neutral";
   status?: "success" | "warning" | "danger" | "neutral";
-  loading?: boolean;
 }
 
 export const KPICard = ({
@@ -20,8 +19,7 @@ export const KPICard = ({
   change,
   icon,
   trend = "neutral",
-  status = "neutral",
-  loading = false
+  status = "neutral"
 }: KPICardProps) => {
   const statusColors = {
     success: "border-success/20 bg-success/5 text-success-foreground",
@@ -33,18 +31,8 @@ export const KPICard = ({
   const trendColors = {
     up: "text-success",
     down: "text-danger", 
-    neutral: "text-muted-foreground"
+    neutral: "text-black"
   };
-
-  if (loading) {
-    return (
-      <div className="bg-card border rounded-lg p-6 animate-pulse">
-        <div className="h-4 bg-muted rounded w-1/2 mb-2"></div>
-        <div className="h-8 bg-muted rounded w-3/4 mb-2"></div>
-        <div className="h-3 bg-muted rounded w-1/3"></div>
-      </div>
-    );
-  }
 
   return (
     <div className={cn(
@@ -53,8 +41,8 @@ export const KPICard = ({
     )}>
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-3xl font-bold font-mono">{value}</p>
+          <p className="text-sm font-medium text-black">{title}</p>
+          <p className="text-3xl font-bold font-mono text-black">{value}</p>
           {change && (
             <p className={cn("text-xs flex items-center gap-1", trendColors[trend])}>
               {trend === "up" && "↗"} 
@@ -64,7 +52,7 @@ export const KPICard = ({
           )}
         </div>
         {icon && (
-          <div className="text-muted-foreground/60">
+          <div className="text-black">
             {icon}
           </div>
         )}
