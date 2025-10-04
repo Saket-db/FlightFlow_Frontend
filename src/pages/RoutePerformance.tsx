@@ -62,11 +62,11 @@ const RoutePerformance = () => {
                           {route.route || `Route ${index + 1}`}
                         </span>
                         <Badge variant="secondary" className="bg-blue-100 text-black">
-                          {route.flight_count || 0} flights
+                          {route.flights || route.flight_count || 0} flights
                         </Badge>
                       </div>
                       <p className="text-xs text-black mt-1">
-                        Avg Delay: {route.avg_delay?.toFixed(1) || 'N/A'} min
+                        Avg Delay: {(route.avg_dep_delay ?? route.avg_delay)?.toFixed?.(1) || 'N/A'} min
                       </p>
                     </div>
                   ))}
@@ -103,11 +103,11 @@ const RoutePerformance = () => {
                           {airline.airline || `Airline ${index + 1}`}
                         </span>
                         <Badge variant="secondary" className="bg-green-100 text-black">
-                          {airline.flight_count || 0} flights
+                          {airline.flights || airline.flight_count || 0} flights
                         </Badge>
                       </div>
                       <p className="text-xs text-black mt-1">
-                        Avg Delay: {airline.avg_delay?.toFixed(1) || 'N/A'} min
+                        Avg Delay: {(airline.avg_dep_delay ?? airline.avg_delay)?.toFixed?.(1) || 'N/A'} min
                       </p>
                     </div>
                   ))}

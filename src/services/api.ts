@@ -62,6 +62,19 @@ export interface CascadeRisk {
   mitigation_suggestions: string[];
 }
 
+export interface CascadeMeta {
+  total_aggregated_flights: number;
+  counts: Record<string, number>;
+  thresholds: { q90: number; q60: number };
+  page: number;
+  per_page: number;
+}
+
+export interface CascadeApiResponse {
+  meta: CascadeMeta;
+  records: any[];
+}
+
 export interface PredictionRequest {
   flight: string;
 }
@@ -78,6 +91,7 @@ export interface PredictionResponse {
 export interface WhatIfRequest {
   flight: string;
   minutes: number;
+  slotMinutes?: number;
 }
 
 export interface WhatIfResponse {
@@ -86,6 +100,22 @@ export interface WhatIfResponse {
   queueing_burden_before: number;
   queueing_burden_after: number;
   delta: number;
+  stats_before?: {
+    total_wait: number;
+    total_flights: number;
+    avg_wait_per_flight: number;
+    avg_wait_per_unique_flight?: number;
+    median_wait_per_flight?: number;
+    top_slots: { bucket: number; count: number; per_flight_wait: number; total_wait: number }[];
+  };
+  stats_after?: {
+    total_wait: number;
+    total_flights: number;
+    avg_wait_per_flight: number;
+    avg_wait_per_unique_flight?: number;
+    median_wait_per_flight?: number;
+    top_slots: { bucket: number; count: number; per_flight_wait: number; total_wait: number }[];
+  };
 }
 
 export interface ChatRequest {
@@ -168,8 +198,16 @@ class ApiService {
   }
 
   // Cascade Risk Analysis
-  async getCascadeAnalysis(): Promise<ApiResponse<CascadeRisk>> {
-    return this.fetchWithErrorHandling<CascadeRisk>('/analysis/cascade');
+  async getCascadeAnalysis(params?: { risk?: string; page?: number; per_page?: number; flight?: string }): Promise<ApiResponse<CascadeApiResponse>> {
+    const qs = [] as string[];
+    if (params) {
+      if (params.risk) qs.push(`risk_level=${encodeURIComponent(params.risk)}`);
+      if (params.page) qs.push(`page=${params.page}`);
+      if (params.per_page) qs.push(`per_page=${params.per_page}`);
+      if (params.flight) qs.push(`flight=${encodeURIComponent(params.flight)}`);
+    }
+    const endpoint = `/analysis/cascade${qs.length ? '?' + qs.join('&') : ''}`;
+    return this.fetchWithErrorHandling<CascadeApiResponse>(endpoint);
   }
 
   // Runway Configuration

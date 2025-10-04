@@ -11,6 +11,12 @@ const CascadeRisk = () => {
   const [riskMetrics, setRiskMetrics] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [selectedTimeframe, setSelectedTimeframe] = useState("24h");
+  const [computedTrend, setComputedTrend] = useState<any[]>([]);
+  const [selectedRisks, setSelectedRisks] = useState<string[]>([]); // empty = all
+  const [page, setPage] = useState<number>(1);
+  const perPage = 20;
+  const [searchFlight, setSearchFlight] = useState<string>('');
+  const [meta, setMeta] = useState<any>(null);
 
   // Sample cascade risk data (fallback when API fails)
   const sampleCascadeData = [
@@ -72,62 +78,87 @@ const CascadeRisk = () => {
   ];
 
   // Risk trend data
+  // fallback trend data
   const riskTrendData = [
     { hour: 6, high_risk: 0, medium_risk: 1, low_risk: 2 },
     { hour: 7, high_risk: 2, medium_risk: 2, low_risk: 1 },
     { hour: 8, high_risk: 1, medium_risk: 1, low_risk: 3 },
     { hour: 9, high_risk: 0, medium_risk: 1, low_risk: 2 },
     { hour: 10, high_risk: 0, medium_risk: 0, low_risk: 1 },
-    { hour: 11, high_risk: 0, medium_risk: 0, low_risk: 0 },
   ];
 
   useEffect(() => {
     const fetchCascadeData = async () => {
+      setLoading(true);
       try {
-        const response = await apiService.getCascadeAnalysis();
-        if (response.data) {
-          setCascadeData(response.data);
-          // Calculate risk metrics
-          const metrics = {
-            total_flights: response.data.length,
-            high_risk: response.data.filter((f: any) => f.risk_level === "High").length,
-            medium_risk: response.data.filter((f: any) => f.risk_level === "Medium").length,
-            low_risk: response.data.filter((f: any) => f.risk_level === "Low").length,
-            total_affected: response.data.reduce((sum: number, f: any) => sum + (f.affected_flights || 0), 0),
-            avg_cascade_impact: response.data.reduce((sum: number, f: any) => sum + (f.cascade_impact || 0), 0) / response.data.length
-          };
-          setRiskMetrics(metrics);
-        } else {
-          // Use sample data
-          setCascadeData(sampleCascadeData);
-          setRiskMetrics({
-            total_flights: sampleCascadeData.length,
-            high_risk: sampleCascadeData.filter(f => f.risk_level === "High").length,
-            medium_risk: sampleCascadeData.filter(f => f.risk_level === "Medium").length,
-            low_risk: sampleCascadeData.filter(f => f.risk_level === "Low").length,
-            total_affected: sampleCascadeData.reduce((sum, f) => sum + f.affected_flights, 0),
-            avg_cascade_impact: sampleCascadeData.reduce((sum, f) => sum + f.cascade_impact, 0) / sampleCascadeData.length
+        const riskParam = selectedRisks.length ? selectedRisks.join(',') : undefined;
+        const response = await apiService.getCascadeAnalysis({ risk: riskParam, page, per_page: perPage, flight: searchFlight || undefined });
+        if (response && response.data) {
+          const payload = response.data as any;
+          const dataArr = Array.isArray(payload.records) ? payload.records : [];
+          setCascadeData(dataArr as any[]);
+          setMeta(payload.meta || null);
+
+          // Calculate risk metrics from meta if available, else compute locally
+          if (payload.meta && payload.meta.counts) {
+            const counts = payload.meta.counts as Record<string, number>;
+            const total = Object.values(counts).reduce((s, v) => s + v, 0);
+            setRiskMetrics({
+              total_flights: total,
+              high_risk: counts['High'] || 0,
+              medium_risk: counts['Medium'] || 0,
+              low_risk: counts['Low'] || 0,
+              total_affected: dataArr.reduce((sum: number, f: any) => sum + (f.affected_flights || f.affected || 0), 0),
+              avg_cascade_impact: dataArr.length ? dataArr.reduce((sum: number, f: any) => sum + (f.cascade_impact || f.impact || 0), 0) / dataArr.length : 0
+            });
+          } else {
+            const metrics = {
+              total_flights: dataArr.length,
+              high_risk: dataArr.filter((f: any) => (f.risk_level || f.risk || '').toString().toLowerCase() === "high").length,
+              medium_risk: dataArr.filter((f: any) => (f.risk_level || f.risk || '').toString().toLowerCase() === "medium").length,
+              low_risk: dataArr.filter((f: any) => (f.risk_level || f.risk || '').toString().toLowerCase() === "low").length,
+              total_affected: dataArr.reduce((sum: number, f: any) => sum + (f.affected_flights || f.affected || 0), 0),
+              avg_cascade_impact: dataArr.length ? dataArr.reduce((sum: number, f: any) => sum + (f.cascade_impact || f.impact || 0), 0) / dataArr.length : 0
+            };
+            setRiskMetrics(metrics);
+          }
+
+          // Compute trend map same as before
+          const trendMap: Record<string, { high: number; medium: number; low: number }> = {};
+          dataArr.forEach((f: any, idx: number) => {
+            let hourKey = null as string | null;
+            const st = f.scheduled_time || f.TimeSlot || f.time || '';
+            if (typeof st === 'string') {
+              const m = st.match(/(\d{1,2}):(\d{2})/);
+              if (m) hourKey = String(parseInt(m[1], 10));
+            }
+            if (!hourKey) hourKey = String(6 + (idx % 12));
+            trendMap[hourKey] = trendMap[hourKey] || { high: 0, medium: 0, low: 0 };
+            const rl = (f.risk_level || f.risk || '').toString().toLowerCase();
+            if (rl === 'high') trendMap[hourKey].high += 1;
+            else if (rl === 'medium') trendMap[hourKey].medium += 1;
+            else trendMap[hourKey].low += 1;
           });
+          const computedTrend = Object.keys(trendMap).sort((a,b)=>Number(a)-Number(b)).map(k=>({
+            hour: Number(k),
+            high_risk: trendMap[k].high,
+            medium_risk: trendMap[k].medium,
+            low_risk: trendMap[k].low
+          }));
+          if (computedTrend.length) setComputedTrend(computedTrend);
+        } else {
+          setCascadeData(sampleCascadeData);
         }
       } catch (error) {
         console.error('Error fetching cascade data:', error);
-        // Use sample data as fallback
         setCascadeData(sampleCascadeData);
-        setRiskMetrics({
-          total_flights: sampleCascadeData.length,
-          high_risk: sampleCascadeData.filter(f => f.risk_level === "High").length,
-          medium_risk: sampleCascadeData.filter(f => f.risk_level === "Medium").length,
-          low_risk: sampleCascadeData.filter(f => f.risk_level === "Low").length,
-          total_affected: sampleCascadeData.reduce((sum, f) => sum + f.affected_flights, 0),
-          avg_cascade_impact: sampleCascadeData.reduce((sum, f) => sum + f.cascade_impact, 0) / sampleCascadeData.length
-        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchCascadeData();
-  }, []);
+  }, [selectedRisks, page, searchFlight]);
 
   const getRiskColor = (riskLevel: string) => {
     switch (riskLevel) {
@@ -147,6 +178,27 @@ const CascadeRisk = () => {
     }
   };
 
+  // Use server-provided page (cascadeData is already paged)
+  const pagedData = cascadeData;
+  const totalPages = meta ? Math.max(1, Math.ceil((meta.total_aggregated_flights || 0) / perPage)) : 1;
+
+  // metrics: prefer meta-based counts when available
+  const metrics = meta ? {
+    total_flights: meta.total_aggregated_flights || 0,
+    high_risk: meta.counts?.High || 0,
+    medium_risk: meta.counts?.Medium || 0,
+    low_risk: meta.counts?.Low || 0,
+    total_affected: cascadeData.reduce((sum: number, f: any) => sum + (f.affected_flights || f.affected || 0), 0),
+    avg_cascade_impact: cascadeData.length ? cascadeData.reduce((sum: number, f: any) => sum + (f.cascade_impact || f.impact || 0), 0) / cascadeData.length : 0
+  } : {
+    total_flights: cascadeData.length,
+    high_risk: cascadeData.filter((f: any) => (f.risk_level || f.risk || '').toString().toLowerCase() === 'high').length,
+    medium_risk: cascadeData.filter((f: any) => (f.risk_level || f.risk || '').toString().toLowerCase() === 'medium').length,
+    low_risk: cascadeData.filter((f: any) => (f.risk_level || f.risk || '').toString().toLowerCase() === 'low').length,
+    total_affected: cascadeData.reduce((sum: number, f: any) => sum + (f.affected_flights || f.affected || 0), 0),
+    avg_cascade_impact: cascadeData.length ? cascadeData.reduce((sum: number, f: any) => sum + (f.cascade_impact || f.impact || 0), 0) / cascadeData.length : 0
+  };
+
   return (
     <div className="space-y-6 py-6">
       <div>
@@ -163,7 +215,7 @@ const CascadeRisk = () => {
             <CardTitle className="text-sm font-medium text-black">Total Flights</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-black">{riskMetrics.total_flights || 0}</div>
+            <div className="text-2xl font-bold text-black">{metrics.total_flights || 0}</div>
             <p className="text-xs text-black">Monitored flights</p>
           </CardContent>
         </Card>
@@ -173,7 +225,7 @@ const CascadeRisk = () => {
             <CardTitle className="text-sm font-medium text-black">High Risk</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{riskMetrics.high_risk || 0}</div>
+            <div className="text-2xl font-bold text-red-600">{metrics.high_risk || 0}</div>
             <p className="text-xs text-black">Critical delays</p>
           </CardContent>
         </Card>
@@ -183,7 +235,7 @@ const CascadeRisk = () => {
             <CardTitle className="text-sm font-medium text-black">Affected Flights</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{riskMetrics.total_affected || 0}</div>
+            <div className="text-2xl font-bold text-amber-600">{metrics.total_affected || 0}</div>
             <p className="text-xs text-black">Downstream impact</p>
           </CardContent>
         </Card>
@@ -194,12 +246,43 @@ const CascadeRisk = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-black">
-              {riskMetrics.avg_cascade_impact ? Math.round(riskMetrics.avg_cascade_impact) : 0} min
+              {metrics.avg_cascade_impact ? Math.round(metrics.avg_cascade_impact) : 0} min
             </div>
             <p className="text-xs text-black">Cascade delay</p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Risk Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-black">Filters</CardTitle>
+          <CardDescription className="text-black">Select risk levels to display</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <input placeholder="Search flight (e.g. 6E762)" value={searchFlight} onChange={(e)=>{ setSearchFlight(e.target.value); setPage(1); }} className="px-2 py-1 border rounded" />
+            <button className="px-3 py-1 border rounded" onClick={()=>{ setPage(1); /* triggers effect */ }}>Search</button>
+          </div>
+          <div className="mt-3 flex gap-4">
+            {['High','Medium','Low'].map(l => (
+              <label key={l} className="inline-flex items-center gap-2">
+                <input type="checkbox" value={l} checked={selectedRisks.includes(l)} onChange={(e)=>{
+                  const checked = e.target.checked;
+                  if (checked) {
+                    setSelectedRisks(prev=> Array.from(new Set([...prev, l])));
+                  } else {
+                    setSelectedRisks(prev=> prev.filter(x=>x!==l));
+                  }
+                  setPage(1);
+                }} />
+                <span className="text-sm text-black">{l}</span>
+              </label>
+            ))}
+            <button className="ml-4 px-3 py-1 border rounded" onClick={()=>{ setSelectedRisks([]); setPage(1); }}>Show All</button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Risk Trend Chart */}
       <Card>
@@ -211,7 +294,7 @@ const CascadeRisk = () => {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={riskTrendData}>
+            <LineChart data={computedTrend.length ? computedTrend : riskTrendData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="hour" />
               <YAxis />
@@ -261,7 +344,7 @@ const CascadeRisk = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {cascadeData.map((flight, index) => (
+            {pagedData.map((flight, index) => (
               <div key={index} className="p-4 border rounded-lg bg-gray-50">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-center">
                   {/* Flight Info */}
@@ -321,6 +404,16 @@ const CascadeRisk = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-black">Showing {meta ? Math.min(meta.total_aggregated_flights, (page-1)*perPage+1) : (cascadeData.length?1:0)} - {meta ? Math.min(meta.total_aggregated_flights, page*perPage) : cascadeData.length} of {meta ? meta.total_aggregated_flights : cascadeData.length}</div>
+        <div className="space-x-2">
+          <button className="px-3 py-1 border rounded" disabled={page<=1} onClick={()=>setPage(p=>Math.max(1,p-1))}>Prev</button>
+          <span className="text-sm">Page {page} / {totalPages}</span>
+          <button className="px-3 py-1 border rounded" disabled={page>=totalPages} onClick={()=>setPage(p=>Math.min(totalPages,p+1))}>Next</button>
+        </div>
+      </div>
 
       {/* Risk Mitigation Actions */}
       <Card>

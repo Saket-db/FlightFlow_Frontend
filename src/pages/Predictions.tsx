@@ -19,6 +19,7 @@ const Predictions = () => {
   const [routeData, setRouteData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [timeShift, setTimeShift] = useState(15);
+  const [slotMinutes, setSlotMinutes] = useState(1);
   const [availableFlights, setAvailableFlights] = useState<string[]>([]);
 
   // Sample data for charts (replace with real API data)
@@ -120,6 +121,7 @@ const Predictions = () => {
       const response = await apiService.runWhatIfScenario({
         flight: selectedFlight,
         minutes: timeShift,
+        slotMinutes: slotMinutes,
       });
       setWhatIfData(response.data);
     } catch (error) {
@@ -231,35 +233,110 @@ const Predictions = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label htmlFor="slotMinutes" className="text-black">Bucket Granularity</Label>
+                <Select value={slotMinutes.toString()} onValueChange={(v) => setSlotMinutes(parseInt(v))}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 minute</SelectItem>
+                    <SelectItem value="5">5 minutes</SelectItem>
+                    <SelectItem value="15">15 minutes</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button id="analyze-impact-btn" onClick={handleWhatIfAnalysis} disabled={loading || !selectedFlight}>
                 Analyze Impact
               </Button>
             </div>
 
             {whatIfData && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-green-50 rounded-lg">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-black">{selectedFlight ? 1 : 0}</p>
-                  <p className="text-sm text-black">Flights Affected</p>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-green-50 rounded-lg">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-black">{selectedFlight ? 1 : 0}</p>
+                    <p className="text-sm text-black">Flights Affected</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-black flex items-center justify-center gap-1">
+                      {whatIfData.delta > 0 ? (
+                        <TrendingUp className="h-4 w-4 text-red-600" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4 text-green-600" />
+                      )}
+                      {Math.abs(whatIfData.delta || 0).toFixed(2)}
+                    </p>
+                    <p className="text-sm text-black">Queue Burden Δ (min)</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-black">{(whatIfData.queueing_burden_before ?? 0).toFixed(2)}</p>
+                    <p className="text-sm text-black">Queue Burden Before (min)</p>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-black flex items-center justify-center gap-1">
-                    {whatIfData.delta > 0 ? (
-                      <TrendingUp className="h-4 w-4 text-red-600" />
-                    ) : (
-                      <TrendingDown className="h-4 w-4 text-green-600" />
+
+                {/* Friendly summary cards: totals in hours and avg per flight */}
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                  <div className="col-span-2 text-center p-4 bg-white rounded-lg shadow">
+                    <p className="text-sm text-gray-600">Total Wait (before)</p>
+                    <p className="text-xl font-bold text-black">{((whatIfData.stats_before?.total_wait ?? 0) / 60).toFixed(2)} h</p>
+                    <p className="text-xs text-gray-500">({(whatIfData.stats_before?.total_wait ?? 0).toFixed(0)} min)</p>
+                  </div>
+                  <div className="col-span-2 text-center p-4 bg-white rounded-lg shadow">
+                    <p className="text-sm text-gray-600">Avg wait / flight (before)</p>
+                    <p className="text-xl font-bold text-black">{(whatIfData.stats_before?.avg_wait_per_flight ?? 0).toFixed(2)} min</p>
+                    <p className="text-xs text-gray-500">{whatIfData.stats_before?.total_flights ?? 0} flights</p>
+                    {(whatIfData.stats_before?.median_wait_per_flight !== undefined) && (
+                      <p className="text-xs text-gray-500">median: {(whatIfData.stats_before?.median_wait_per_flight ?? 0).toFixed(2)} min</p>
                     )}
-                    {Math.abs(whatIfData.delta || 0).toFixed(2)}
-                  </p>
-                  <p className="text-sm text-black">Queue Burden Δ</p>
+                    {(whatIfData.stats_before?.avg_wait_per_unique_flight !== undefined) && (
+                      <p className="text-xs text-gray-500">avg / unique flight: {(whatIfData.stats_before?.avg_wait_per_unique_flight ?? 0).toFixed(2)} min</p>
+                    )}
+                  </div>
+                  <div className="col-span-2 text-center p-4 bg-white rounded-lg shadow">
+                    <p className="text-sm text-gray-600">Total Wait Δ</p>
+                    <p className="text-xl font-bold text-black">{(((whatIfData.stats_after?.total_wait ?? 0) - (whatIfData.stats_before?.total_wait ?? 0)) / 60).toFixed(2)} h</p>
+                    <p className="text-xs text-gray-500">Δ {(whatIfData.delta ?? 0).toFixed(2)} min</p>
+                    {(whatIfData.stats_after?.median_wait_per_flight !== undefined) && (
+                      <p className="text-xs text-gray-500">median after: {(whatIfData.stats_after?.median_wait_per_flight ?? 0).toFixed(2)} min</p>
+                    )}
+                    {(whatIfData.stats_after?.avg_wait_per_unique_flight !== undefined) && (
+                      <p className="text-xs text-gray-500">avg/unique after: {(whatIfData.stats_after?.avg_wait_per_unique_flight ?? 0).toFixed(2)} min</p>
+                    )}
+                  </div>
                 </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-black">{(whatIfData.queueing_burden_before ?? 0).toFixed(2)}</p>
-                  <p className="text-sm text-black">Queue Burden Before</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-black">{(whatIfData.queueing_burden_after ?? 0).toFixed(2)}</p>
-                  <p className="text-sm text-black">Queue Burden After</p>
+
+                {/* Top slots before/after */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-white rounded-lg shadow">
+                    <h4 className="text-sm font-semibold text-gray-700">Top Slots — Before</h4>
+                    <div className="mt-2 space-y-2">
+                      {(whatIfData.stats_before?.top_slots || []).slice(0,3).map((s:any, i:number) => (
+                        <div key={i} className="flex justify-between text-sm">
+                          <div>Slot {String(Math.floor((s.bucket||0)/60)).padStart(2,'0')}:{String((s.bucket||0)%60).padStart(2,'0')}</div>
+                          <div>{s.count} flights — {(s.total_wait/60).toFixed(2)} h</div>
+                        </div>
+                      ))}
+                      {(!whatIfData.stats_before || (whatIfData.stats_before.top_slots || []).length === 0) && (
+                        <div className="text-sm text-gray-500">No slot data</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-white rounded-lg shadow">
+                    <h4 className="text-sm font-semibold text-gray-700">Top Slots — After</h4>
+                    <div className="mt-2 space-y-2">
+                      {(whatIfData.stats_after?.top_slots || []).slice(0,3).map((s:any, i:number) => (
+                        <div key={i} className="flex justify-between text-sm">
+                          <div>Slot {String(Math.floor((s.bucket||0)/60)).padStart(2,'0')}:{String((s.bucket||0)%60).padStart(2,'0')}</div>
+                          <div>{s.count} flights — {(s.total_wait/60).toFixed(2)} h</div>
+                        </div>
+                      ))}
+                      {(!whatIfData.stats_after || (whatIfData.stats_after.top_slots || []).length === 0) && (
+                        <div className="text-sm text-gray-500">No slot data</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
