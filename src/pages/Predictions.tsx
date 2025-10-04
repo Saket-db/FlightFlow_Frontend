@@ -34,25 +34,26 @@ const Predictions = () => {
   ];
 
   const sampleAirlineData = [
-    { airline: "AI", avg_delay: 8.5, flights: 45, p90_delay: 18 },
-    { airline: "QP", avg_delay: 6.2, flights: 32, p90_delay: 14 },
-    { airline: "QO", avg_delay: 9.1, flights: 28, p90_delay: 20 },
-    { airline: "OV", avg_delay: 5.8, flights: 35, p90_delay: 12 },
-    { airline: "GF", avg_delay: 7.3, flights: 42, p90_delay: 16 },
+    { airline: "AI", avg_dep_delay: 8.5, flights: 45, p90_dep_delay: 18 },
+    { airline: "QP", avg_dep_delay: 6.2, flights: 32, p90_dep_delay: 14 },
+    { airline: "QO", avg_dep_delay: 9.1, flights: 28, p90_dep_delay: 20 },
+    { airline: "OV", avg_dep_delay: 5.8, flights: 35, p90_dep_delay: 12 },
+    { airline: "GF", avg_dep_delay: 7.3, flights: 42, p90_dep_delay: 16 },
   ];
 
   useEffect(() => {
     // Fetch data for charts
     const fetchData = async () => {
       try {
-        const [slotsResponse, airlinesResponse, routesResponse] = await Promise.all([
+        const [slotsResponse, airlinesResponse, routesResponse, flightsResponse] = await Promise.all([
           apiService.getSlotStats(),
           apiService.getTopAirlines(),
-          apiService.getTopRoutes()
+          apiService.getTopRoutes(),
+          apiService.getFlights()
         ]);
         
-        if (slotsResponse.data?.detailed_slots) {
-          setSlotData(slotsResponse.data.detailed_slots);
+        if (slotsResponse.data) {
+          setSlotData(slotsResponse.data);
         }
         
         if (airlinesResponse.data) {
@@ -63,14 +64,9 @@ const Predictions = () => {
           setRouteData(routesResponse.data);
         }
 
-        // Generate sample flight numbers for dropdown
-        const flights = [];
-        for (let i = 1; i <= 20; i++) {
-          flights.push(`AI${1000 + i}`);
-          flights.push(`QP${2000 + i}`);
-          flights.push(`QO${3000 + i}`);
+        if (flightsResponse.data?.flights) {
+          setAvailableFlights(flightsResponse.data.flights);
         }
-        setAvailableFlights(flights);
         
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -90,15 +86,20 @@ const Predictions = () => {
     setLoading(true);
     try {
       const response = await apiService.predictDelays({
-        flight_id: selectedFlight,
-        origin: "MUMBAI (BOM)",
-        destination: "DELHI (DEL)",
-        scheduled_time: "2025-07-20T10:00:00"
+        flight: selectedFlight
       });
-      setPredictionData(response.data);
+      // Convert backend response to frontend format
+      setPredictionData({
+        flight_id: response.data.flight,
+        predicted_delay: response.data.p50,
+        p90_delay: response.data.p90,
+        delay_probability: response.data.delay_probability,
+        confidence: response.data.confidence,
+        sample_size: response.data.sample_size,
+      });
     } catch (error) {
       console.error('Error predicting delays:', error);
-      // Set sample prediction data
+      // Set sample prediction data as fallback
       setPredictionData({
         flight_id: selectedFlight,
         delay_probability: 0.65,
@@ -117,27 +118,19 @@ const Predictions = () => {
     setLoading(true);
     try {
       const response = await apiService.runWhatIfScenario({
-        scenario: "time_shift",
-        time_shift: timeShift,
-        affected_flights: [selectedFlight]
+        flight: selectedFlight,
+        minutes: timeShift,
       });
       setWhatIfData(response.data);
     } catch (error) {
       console.error('Error running what-if analysis:', error);
-      // Set sample what-if data
+      // Sample fallback mapped to backend-like shape
       setWhatIfData({
-        scenario_id: "shift_" + timeShift,
-        impact_summary: {
-          total_affected: 1,
-          delay_change: -timeShift * 0.3,
-          burden_change: -timeShift * 0.2
-        },
-        detailed_results: [{
-          flight: selectedFlight,
-          original_delay: 12.5,
-          new_delay: 12.5 - timeShift * 0.3,
-          improvement: timeShift * 0.3
-        }]
+        flight: selectedFlight,
+        minutes: timeShift,
+        queueing_burden_before: 10,
+        queueing_burden_after: 10 - timeShift * 0.1,
+        delta: -timeShift * 0.1,
       });
     } finally {
       setLoading(false);
@@ -183,7 +176,7 @@ const Predictions = () => {
                 </Select>
               </div>
               <div className="flex items-end">
-                <Button onClick={handleFlightPrediction} disabled={loading || !selectedFlight}>
+                <Button id="predict-delays-btn" onClick={handleFlightPrediction} disabled={loading || !selectedFlight}>
                   <Search className="h-4 w-4 mr-2" />
                   Predict Delays
                 </Button>
@@ -238,7 +231,7 @@ const Predictions = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={handleWhatIfAnalysis} disabled={loading || !selectedFlight}>
+              <Button id="analyze-impact-btn" onClick={handleWhatIfAnalysis} disabled={loading || !selectedFlight}>
                 Analyze Impact
               </Button>
             </div>
@@ -246,23 +239,27 @@ const Predictions = () => {
             {whatIfData && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-green-50 rounded-lg">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-black">{whatIfData.impact_summary?.total_affected || 0}</p>
+                  <p className="text-2xl font-bold text-black">{selectedFlight ? 1 : 0}</p>
                   <p className="text-sm text-black">Flights Affected</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-black flex items-center justify-center gap-1">
-                    {whatIfData.impact_summary?.delay_change > 0 ? (
+                    {whatIfData.delta > 0 ? (
                       <TrendingUp className="h-4 w-4 text-red-600" />
                     ) : (
                       <TrendingDown className="h-4 w-4 text-green-600" />
                     )}
-                    {Math.abs(whatIfData.impact_summary?.delay_change || 0).toFixed(1)} min
+                    {Math.abs(whatIfData.delta || 0).toFixed(2)}
                   </p>
-                  <p className="text-sm text-black">Delay Change</p>
+                  <p className="text-sm text-black">Queue Burden Δ</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-black">{whatIfData.impact_summary?.burden_change?.toFixed(1) || 0}%</p>
-                  <p className="text-sm text-black">Queue Burden Change</p>
+                  <p className="text-2xl font-bold text-black">{(whatIfData.queueing_burden_before ?? 0).toFixed(2)}</p>
+                  <p className="text-sm text-black">Queue Burden Before</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-black">{(whatIfData.queueing_burden_after ?? 0).toFixed(2)}</p>
+                  <p className="text-sm text-black">Queue Burden After</p>
                 </div>
               </div>
             )}

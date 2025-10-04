@@ -22,11 +22,13 @@ export interface DatasetMeta {
 }
 
 export interface SlotStats {
-  total_slots: number;
-  utilized_slots: number;
-  utilization_rate: number;
-  avg_queueing_burden: number;
-  detailed_slots?: any[];
+  slot_15?: string;
+  flights: number;
+  avg_dep_delay: number;
+  p50_dep_delay: number;
+  p90_dep_delay: number;
+  is_green: boolean;
+  slot_label: string;
 }
 
 export interface GreenWindow {
@@ -48,10 +50,9 @@ export interface TopRoute {
 
 export interface TopAirline {
   airline: string;
-  flight_count: number;
-  avg_delay: number;
-  on_time_rate: number;
-  performance_score: number;
+  flights: number;
+  avg_dep_delay: number;
+  p90_dep_delay: number;
 }
 
 export interface CascadeRisk {
@@ -62,34 +63,29 @@ export interface CascadeRisk {
 }
 
 export interface PredictionRequest {
-  flight_id: string;
-  origin: string;
-  destination: string;
-  scheduled_time: string;
+  flight: string;
 }
 
 export interface PredictionResponse {
-  flight_id: string;
+  flight: string;
+  p50: number;
+  p90: number;
   delay_probability: number;
-  predicted_delay: number;
   confidence: number;
-  factors: string[];
+  sample_size: number;
 }
 
 export interface WhatIfRequest {
-  scenario: string;
-  time_shift: number;
-  affected_flights: string[];
+  flight: string;
+  minutes: number;
 }
 
 export interface WhatIfResponse {
-  scenario_id: string;
-  impact_summary: {
-    total_affected: number;
-    delay_change: number;
-    burden_change: number;
-  };
-  detailed_results: any[];
+  flight: string;
+  minutes: number;
+  queueing_burden_before: number;
+  queueing_burden_after: number;
+  delta: number;
 }
 
 export interface ChatRequest {
@@ -146,9 +142,13 @@ class ApiService {
     return this.fetchWithErrorHandling<DatasetMeta>('/dataset/meta');
   }
 
+  async getFlights(): Promise<ApiResponse<{flights: string[]}>> {
+    return this.fetchWithErrorHandling<{flights: string[]}>('/flights');
+  }
+
   // Analysis Operations
-  async getSlotStats(): Promise<ApiResponse<SlotStats>> {
-    return this.fetchWithErrorHandling<SlotStats>('/analysis/slots');
+  async getSlotStats(): Promise<ApiResponse<SlotStats[]>> {
+    return this.fetchWithErrorHandling<SlotStats[]>('/analysis/slots');
   }
 
   async getGreenWindows(): Promise<ApiResponse<GreenWindow[]>> {
@@ -199,13 +199,6 @@ class ApiService {
     });
   }
 
-  // Configuration
-  async updateRunwayConfig(config: any): Promise<ApiResponse<any>> {
-    return this.fetchWithErrorHandling<any>('/config/runway', {
-      method: 'POST',
-      body: JSON.stringify(config),
-    });
-  }
 
   // Chat Interface
   async sendChatMessage(request: ChatRequest): Promise<ApiResponse<ChatResponse>> {
