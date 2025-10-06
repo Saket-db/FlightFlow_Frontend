@@ -9,7 +9,6 @@ import { AppLayout } from "@/components/layout/AppLayout";
 // Lazy load pages for better performance
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const FlightAnalysis = lazy(() => import("./pages/FlightAnalysis"));
-const RoutePerformance = lazy(() => import("./pages/RoutePerformance"));
 const Predictions = lazy(() => import("./pages/Predictions"));
 const CascadeRisk = lazy(() => import("./pages/CascadeRisk"));
 const Configuration = lazy(() => import("./pages/Configuration"));
@@ -42,11 +41,7 @@ const App = () => (
                 <FlightAnalysis />
               </PageSuspense>
             } />
-            <Route path="/routes" element={
-              <PageSuspense>
-                <RoutePerformance />
-              </PageSuspense>
-            } />
+            {/* /routes removed - merged into Dashboard/Flight Analysis */}
             <Route path="/predictions" element={
               <PageSuspense>
                 <Predictions />

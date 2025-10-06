@@ -48,7 +48,11 @@ const RoutePerformance = () => {
             <CardDescription className="text-black">Best performing flight routes</CardDescription>
           </CardHeader>
           <CardContent>
-            {topRoutes.length > 0 ? (
+            {loading ? (
+              <div className="text-center py-8">
+                <p className="text-black">Loading route data...</p>
+              </div>
+            ) : topRoutes.length > 0 ? (
               <div className="space-y-3">
                 <div className="text-center p-4 bg-blue-50 rounded-lg mb-4">
                   <p className="text-2xl font-bold text-black">{topRoutes.length}</p>
@@ -56,13 +60,14 @@ const RoutePerformance = () => {
                 </div>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {topRoutes.slice(0, 5).map((route, index) => (
-                    <div key={index} className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div key={route.route ?? `${route.from}-${route.to}-${index}`}
+                      className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium text-black">
-                          {route.route || `Route ${index + 1}`}
+                          {route.route || `${route.From || route.from || 'Route'} → ${route.To || route.to || ''}`}
                         </span>
                         <Badge variant="secondary" className="bg-blue-100 text-black">
-                          {route.flights || route.flight_count || 0} flights
+                          {route.flights ?? route.flight_count ?? 0} flights
                         </Badge>
                       </div>
                       <p className="text-xs text-black mt-1">
@@ -74,7 +79,7 @@ const RoutePerformance = () => {
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className="text-black">Loading route data...</p>
+                <p className="text-black">No route data available.</p>
               </div>
             )}
           </CardContent>
@@ -89,7 +94,11 @@ const RoutePerformance = () => {
             <CardDescription className="text-black">Performance rankings by airline</CardDescription>
           </CardHeader>
           <CardContent>
-            {topAirlines.length > 0 ? (
+            {loading ? (
+              <div className="text-center py-8">
+                <p className="text-black">Loading airline data...</p>
+              </div>
+            ) : topAirlines.length > 0 ? (
               <div className="space-y-3">
                 <div className="text-center p-4 bg-green-50 rounded-lg mb-4">
                   <p className="text-2xl font-bold text-black">{topAirlines.length}</p>
@@ -97,13 +106,13 @@ const RoutePerformance = () => {
                 </div>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {topAirlines.slice(0, 5).map((airline, index) => (
-                    <div key={index} className="p-3 bg-green-50 rounded-lg border border-green-200">
+                    <div key={airline.airline ?? index} className="p-3 bg-green-50 rounded-lg border border-green-200">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium text-black">
                           {airline.airline || `Airline ${index + 1}`}
                         </span>
                         <Badge variant="secondary" className="bg-green-100 text-black">
-                          {airline.flights || airline.flight_count || 0} flights
+                          {airline.flights ?? airline.flight_count ?? 0} flights
                         </Badge>
                       </div>
                       <p className="text-xs text-black mt-1">
@@ -115,7 +124,7 @@ const RoutePerformance = () => {
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className="text-black">Loading airline data...</p>
+                <p className="text-black">No airline data available.</p>
               </div>
             )}
           </CardContent>

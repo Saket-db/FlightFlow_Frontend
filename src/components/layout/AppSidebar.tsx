@@ -25,7 +25,7 @@ import {
 const navigationItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Flight Analysis", url: "/analysis", icon: BarChart3 },
-  { title: "Route Performance", url: "/routes", icon: Route },
+  // Route Performance merged into Flight Analysis
   { title: "Predictions", url: "/predictions", icon: Brain },
   { title: "Cascade Risk", url: "/cascade", icon: AlertTriangle },
   { title: "Configuration", url: "/config", icon: Settings },

@@ -48,8 +48,8 @@ const FlightAnalysis = () => {
         ]);
 
         setSlotData(
-          slotsResponse?.data?.detailed_slots?.length
-            ? slotsResponse.data.detailed_slots
+          Array.isArray(slotsResponse?.data) && slotsResponse.data.length
+            ? slotsResponse.data
             : sampleSlotData
         );
 
@@ -165,6 +165,85 @@ const FlightAnalysis = () => {
               {Math.round(slots.reduce((sum, s) => sum + (s.p90_delay || 0), 0) / slots.length)} min
             </div>
             <p className="text-xs text-neutral-500 mt-1">Average P90 delay across slots</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Top Routes & Airlines (merged) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-neutral-600">Top Routes</CardTitle>
+            <CardDescription className="text-sm text-neutral-500">Highest-impact routes (by flights)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="text-center py-6">Loading route data...</div>
+            ) : routeData && routeData.length > 0 ? (
+              <div className="space-y-3">
+                <div className="text-center p-3 bg-white rounded-lg mb-3">
+                  <p className="text-2xl font-bold text-neutral-900">{routeData.length}</p>
+                  <p className="text-sm text-neutral-500">Routes Analyzed</p>
+                </div>
+                <div className="space-y-2 max-h-56 overflow-y-auto">
+                  {routeData.slice(0, 8).map((r: any, idx: number) => {
+                    const key = r.route ?? `${r.from ?? r.From ?? 'route'}-${r.to ?? r.To ?? ''}-${idx}`;
+                    const label = r.route ?? `${r.From ?? r.from ?? ''} → ${r.To ?? r.to ?? ''}`;
+                    const flights = r.flights ?? r.flight_count ?? 0;
+                    const avgDelay = r.avg_dep_delay ?? r.avg_delay ?? r.p50_dep_delay ?? null;
+                    return (
+                      <div key={key} className="p-3 bg-gray-50 rounded-lg border border-neutral-100 flex items-center justify-between">
+                        <div className="text-sm font-medium text-neutral-900">{label}</div>
+                        <div className="text-right">
+                          <div className="text-xs text-neutral-600">{flights} flights</div>
+                          <div className="text-xs text-neutral-500">Avg: {avgDelay !== null ? avgDelay.toFixed?.(1) ?? avgDelay : 'N/A'} min</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-6">No route data available.</div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-neutral-600">Airline Rankings</CardTitle>
+            <CardDescription className="text-sm text-neutral-500">Performance rankings by airline</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="text-center py-6">Loading airline data...</div>
+            ) : airlineData && airlineData.length > 0 ? (
+              <div className="space-y-3">
+                <div className="text-center p-3 bg-white rounded-lg mb-3">
+                  <p className="text-2xl font-bold text-neutral-900">{airlineData.length}</p>
+                  <p className="text-sm text-neutral-500">Airlines Ranked</p>
+                </div>
+                <div className="space-y-2 max-h-56 overflow-y-auto">
+                  {airlineData.slice(0, 8).map((a: any, idx: number) => {
+                    const key = a.airline ?? `airline-${idx}`;
+                    const label = a.airline ?? `Airline ${idx + 1}`;
+                    const flights = a.flights ?? a.flight_count ?? 0;
+                    const avgDelay = a.avg_dep_delay ?? a.avg_delay ?? null;
+                    return (
+                      <div key={key} className="p-3 bg-gray-50 rounded-lg border border-neutral-100 flex items-center justify-between">
+                        <div className="text-sm font-medium text-neutral-900">{label}</div>
+                        <div className="text-right">
+                          <div className="text-xs text-neutral-600">{flights} flights</div>
+                          <div className="text-xs text-neutral-500">Avg: {avgDelay !== null ? avgDelay.toFixed?.(1) ?? avgDelay : 'N/A'} min</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-6">No airline data available.</div>
+            )}
           </CardContent>
         </Card>
       </div>

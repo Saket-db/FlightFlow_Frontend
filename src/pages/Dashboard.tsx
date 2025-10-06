@@ -237,7 +237,7 @@ const Dashboard = () => {
             <Button 
               variant="outline" 
               className="justify-start"
-              onClick={() => window.location.href = '/routes'}
+              onClick={() => window.location.href = '/analysis'}
             >
               Analyze Route Performance
             </Button>

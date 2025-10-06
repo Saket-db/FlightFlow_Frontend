@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Settings, Plane, Gauge, Clock, AlertTriangle, CheckCircle, Save, RefreshCw } from "lucide-react";
 import { apiService } from "@/services/api";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface RunwayConfig {
   mode: string;
@@ -47,33 +48,63 @@ const Configuration = () => {
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [systemMetrics, setSystemMetrics] = useState<any>({});
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Fetch configuration and system metrics. Separated so we can re-run without a full page reload.
+  const fetchConfiguration = async () => {
+    try {
+      setErrorMessage(null);
+      setLoading(true);
+      // Fetch runway configuration
+      const runwayResponse = await apiService.getRunwayConfig();
+      if (runwayResponse?.data && typeof runwayResponse.data === 'object') {
+        // Only copy expected fields to avoid replacing state with unexpected shapes
+        setRunwayConfig(prev => ({
+          mode: runwayResponse.data.mode ?? prev.mode,
+          weather: runwayResponse.data.weather ?? prev.weather,
+          capacity: runwayResponse.data.capacity ?? prev.capacity,
+          buffer_time: runwayResponse.data.buffer_time ?? prev.buffer_time,
+          peak_hours: runwayResponse.data.peak_hours ?? prev.peak_hours,
+          maintenance_slots: runwayResponse.data.maintenance_slots ?? prev.maintenance_slots,
+        }));
+      }
+
+      // Fetch system metrics (dataset metadata) and normalize keys from backend
+      const metaResponse = await apiService.getDatasetMeta();
+      if (metaResponse?.data && typeof metaResponse.data === 'object') {
+        const meta = metaResponse.data;
+        const totalFlights = (meta as any).rows ?? meta.total_flights ?? 0;
+        // airports: try explicit list, else fallback to unique keys in from_top / to_top
+        const airportsCount = Array.isArray(meta.airports)
+          ? meta.airports.length
+          : (meta as any).from_top
+          ? Object.keys((meta as any).from_top).length
+          : 0;
+        const airlinesCount = Array.isArray((meta as any).airlines)
+          ? (meta as any).airlines.length
+          : (meta as any).airlines
+          ? Object.keys((meta as any).airlines).length
+          : 0;
+
+        setSystemMetrics({
+          total_flights: totalFlights,
+          date_range: meta.date_range ?? null,
+          airports: airportsCount,
+          airlines: airlinesCount,
+        });
+      }
+    } catch (error: any) {
+      console.error('Error fetching configuration:', error);
+      setErrorMessage(error?.message ?? 'Failed to fetch configuration');
+      // Keep existing defaults on error
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchConfiguration = async () => {
-      try {
-        // Fetch runway configuration
-        const runwayResponse = await apiService.getRunwayConfig();
-        if (runwayResponse.data) {
-          setRunwayConfig(runwayResponse.data);
-        }
-        
-        // Fetch system metrics
-        const metaResponse = await apiService.getDatasetMeta();
-        if (metaResponse.data) {
-          setSystemMetrics({
-            total_flights: metaResponse.data.total_flights,
-            date_range: metaResponse.data.date_range,
-            airports: metaResponse.data.airports?.length || 0,
-            airlines: metaResponse.data.airlines?.length || 0
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching configuration:', error);
-        // Use default values
-      }
-    };
-
     fetchConfiguration();
+    // run only on mount
   }, []);
 
   const handleSaveConfiguration = async () => {
@@ -81,17 +112,27 @@ const Configuration = () => {
     setSaveStatus("saving");
     
     try {
-      // Simulate API call to save configuration
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Update runway config
-      const runwayResponse = await apiService.updateRunwayConfig(runwayConfig);
-      if (runwayResponse.data) {
+      // Send runway configuration to backend
+      const payload = {
+        mode: runwayConfig.mode,
+        weather: runwayConfig.weather,
+        capacity: runwayConfig.capacity,
+        buffer_time: runwayConfig.buffer_time,
+        peak_hours: runwayConfig.peak_hours,
+        maintenance_slots: runwayConfig.maintenance_slots,
+      };
+      const runwayResponse = await apiService.updateRunwayConfig(payload);
+      if (runwayResponse?.data) {
         setSaveStatus("saved");
+        // Re-fetch server-side config so UI reflects any server adjustments
+        await fetchConfiguration();
         setTimeout(() => setSaveStatus("idle"), 3000);
+      } else {
+        throw new Error('Failed to save runway config');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving configuration:', error);
+      setErrorMessage(error?.message ?? 'Failed to save configuration');
       setSaveStatus("error");
       setTimeout(() => setSaveStatus("idle"), 3000);
     } finally {
@@ -134,9 +175,9 @@ const Configuration = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => window.location.reload()}>
+          <Button variant="outline" onClick={() => fetchConfiguration()} disabled={loading}>
             <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+            {loading ? 'Refreshing...' : 'Refresh'}
           </Button>
           <Button onClick={handleSaveConfiguration} disabled={loading}>
             <Save className="h-4 w-4 mr-2" />
@@ -167,6 +208,14 @@ const Configuration = () => {
             </span>
           </div>
         </div>
+      )}
+
+      {/* Error Alert */}
+      {errorMessage && (
+        <Alert variant="destructive" className="mt-4">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{errorMessage}</AlertDescription>
+        </Alert>
       )}
 
       {/* System Overview */}
