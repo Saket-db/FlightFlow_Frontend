@@ -130,7 +130,9 @@ export interface ChatResponse {
 }
 
 class ApiService {
-  private baseURL = 'http://127.0.0.1:8000';
+  // Use Vite env var (must start with VITE_) so it is available at build time on Vercel.
+  // Falls back to localhost for local development.
+  private baseURL: string = (import.meta.env.VITE_API_URL as string) ?? 'http://127.0.0.1:8000';
 
   private async fetchWithErrorHandling<T>(
     endpoint: string,
